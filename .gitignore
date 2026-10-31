@@ -1,0 +1,12 @@
+/build/
+/dist/
+/nbproject/private/
+/nbbuild/
+/nbdist/
+*.class
+*.log
+.DS_Store
+Thumbs.db
+.env
+.env.*
+!.env.example
