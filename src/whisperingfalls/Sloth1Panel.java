@@ -35,12 +35,10 @@ public class Sloth1Panel extends JPanel {
     private BufferedImage headphonesImage;
     private BufferedImage waterBottleImage;
     private BufferedImage flashlightImage;
+    private BufferedImage tweezersImage;
+    private BufferedImage logImage;
 
     private BufferedImage[] toolImages;
-
-    private final String[] toolNames = {
-        "Scissors", "Headphones", "Water", "Flashlight"
-    };
 
     private enum SceneState {
         TRAPPED, WRONG_TOOL, RESCUED
@@ -62,7 +60,7 @@ public class Sloth1Panel extends JPanel {
     private final int toolbarHeight = 200;
 
     private final int slotSize = 100;
-    private final int slotY = 594;
+    private final int slotY = 565;
     private final int firstSlotX = 305;
     private final int slotGap = 190;
 
@@ -114,6 +112,8 @@ public class Sloth1Panel extends JPanel {
 
         flashlightImage = loadImage(
                 "/resources/Tools/Flashlight.png");
+        tweezersImage = loadImage("/resources/Tools/Tweezers.png");
+        logImage = loadImage("/resources/Tools/Log.png");
 
         toolImages = new BufferedImage[] {
             scissorsImage,
@@ -221,7 +221,7 @@ public class Sloth1Panel extends JPanel {
 
             sceneTimer = new Timer(1600, e -> {
                 stopSceneTimer();
-                GameWindow.showForestPath();
+                GameWindow.showSloth2();
             });
 
             sceneTimer.setRepeats(false);
@@ -360,8 +360,8 @@ public class Sloth1Panel extends JPanel {
         BufferedImage toolImage = toolImages[index];
 
         if (toolImage != null) {
-            int iconWidth = (int) (64 * scaleX);
-            int iconHeight = (int) (64 * scaleY);
+            int iconWidth = (int) (80 * scaleX);
+            int iconHeight = (int) (80 * scaleY);
 
             int iconX = slotX + (slotWidth - iconWidth) / 2;
             int iconY = slotYPosition + (int) (4 * scaleY);
@@ -372,21 +372,6 @@ public class Sloth1Panel extends JPanel {
                     iconWidth, iconHeight);
         }
 
-        double fontScale = Math.min(scaleX, scaleY);
-
-        g2.setColor(new Color(255, 230, 150));
-        g2.setFont(new Font(
-                Font.MONOSPACED,
-                Font.BOLD,
-                Math.max(1, (int) (8 * fontScale))));
-
-        FontMetrics metrics = g2.getFontMetrics();
-        int labelWidth = metrics.stringWidth(toolNames[index]);
-
-        g2.drawString(
-                toolNames[index],
-                slotX + (slotWidth - labelWidth) / 2,
-                slotYPosition + (int) (88 * scaleY));
     }
 
     private void drawDraggedTool(Graphics2D g2) {

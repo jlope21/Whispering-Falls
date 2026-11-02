@@ -1,62 +1,47 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package whisperingfalls;
 
 import java.awt.Cursor;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
-import java.awt.event.ActionEvent;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.awt.image.BufferedImage;
 import java.io.InputStream;
-import java.net.URL;
-import java.util.concurrent.atomic.AtomicLong;
 import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JPanel;
-import javazoom.jl.player.Player;
 
-/**
- *
- * @author User
- */
-
+/** Main menu using the prepared background, logo, and start button. */
 public class MenuPanel extends JPanel {
 
-    private java.awt.image.BufferedImage backgroundImage;
-    private java.awt.image.BufferedImage titleImage;
-    private java.awt.image.BufferedImage startImage;
-
+    private BufferedImage backgroundImage;
+    private BufferedImage titleImage;
+    private BufferedImage startImage;
     private JButton startButton;
-
-    private volatile boolean musicEnabled = true;
-    private volatile boolean menuVisible = false;
-    private volatile Player musicPlayer;
-
-    private final AtomicLong musicGeneration = new AtomicLong(0);
     private final Runnable onStart;
 
     public MenuPanel(Runnable onStart) {
         this.onStart = onStart;
-
         setLayout(null);
-        setFocusable(true);
-
         loadImages();
-        createButtons();
+        createStartButton();
+        addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                positionStartButton();
+            }
+        });
     }
 
-    private java.awt.image.BufferedImage loadImage(String path) {
+    private BufferedImage loadImage(String path) {
         try (InputStream input = getClass().getResourceAsStream(path)) {
-            if (input != null) {
-                return ImageIO.read(input);
-            }
+            if (input != null) return ImageIO.read(input);
         } catch (Exception e) {
             System.err.println("Could not load image: " + path);
         }
-
+        System.err.println("Image not found: " + path);
         return null;
     }
 
@@ -66,206 +51,45 @@ public class MenuPanel extends JPanel {
         startImage = loadImage("/resources/menu/START.png");
     }
 
-    private ImageIcon createIcon(java.awt.image.BufferedImage image, int width, int height) {
-        if (image == null) {
-            return new ImageIcon();
-        }
-
-        return new ImageIcon(
-            image.getScaledInstance(width, height, java.awt.Image.SCALE_SMOOTH)
-        );
-    }
-
-    private JButton createImageButton(java.awt.image.BufferedImage image, int width, int height) {
-        JButton button = new JButton(createIcon(image, width, height));
-
-        button.setBorderPainted(false);
-        button.setContentAreaFilled(false);
-        button.setFocusPainted(false);
-        button.setOpaque(false);
-        button.setFocusable(false);
-        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        return button;
-    }
-
-    private void createButtons() {
-        startButton = createImageButton(startImage, 300, 180);
-        startButton.setBounds(630, 550, 300, 180);
-
-        startButton.addActionListener((ActionEvent e) -> {
-            playButtonSound();
-
-            if (onStart != null) {
-                onStart.run();
-            }
+    private void createStartButton() {
+        startButton = new JButton(startImage == null ? new ImageIcon()
+                : new ImageIcon(startImage.getScaledInstance(300, 180,
+                        java.awt.Image.SCALE_SMOOTH)));
+        startButton.setBorderPainted(false);
+        startButton.setContentAreaFilled(false);
+        startButton.setFocusPainted(false);
+        startButton.setOpaque(false);
+        startButton.setFocusable(false);
+        startButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        startButton.addActionListener(e -> {
+            if (onStart != null) onStart.run();
         });
-
         add(startButton);
+        positionStartButton();
     }
 
-    public synchronized void setMusicEnabled(boolean enabled) {
-        musicEnabled = enabled;
-
-        if (!musicEnabled) {
-            stopMusicPlayback();
-        } else if (menuVisible) {
-            startMenuMusic();
-        }
-    }
-
-    public boolean isMusicEnabled() {
-        return musicEnabled;
-    }
-
-    public synchronized void setMenuVisible(boolean visible) {
-        menuVisible = visible;
-
-        if (menuVisible && musicEnabled) {
-            startMenuMusic();
-        } else {
-            stopMusicPlayback();
-        }
-    }
-
-    private synchronized void startMenuMusic() {
-        if (!musicEnabled || !menuVisible || musicPlayer != null) {
-            return;
-        }
-
-        long generation = musicGeneration.incrementAndGet();
-
-        Thread musicThread = new Thread(() -> {
-            while (musicEnabled && menuVisible
-                    && musicGeneration.get() == generation) {
-                Player player = null;
-
-                try {
-                    URL musicUrl = getClass().getResource(
-                        "/resources/sounds/241013-piano-ambient-relaxing.mp3"
-                    );
-
-                    if (musicUrl == null) {
-                        System.err.println("Could not load menu music.");
-                        break;
-                    }
-
-                    try (InputStream input = musicUrl.openStream()) {
-                        player = new Player(input);
-
-                        synchronized (this) {
-                            if (!musicEnabled || !menuVisible
-                                    || musicGeneration.get() != generation) {
-                                player.close();
-                                break;
-                            }
-
-                            musicPlayer = player;
-                        }
-
-                        player.play();
-                    }
-                } catch (Exception e) {
-                    if (musicEnabled && menuVisible
-                            && musicGeneration.get() == generation) {
-                        System.err.println(
-                            "Could not play menu music: " + e.getMessage()
-                        );
-                    }
-
-                    break;
-                } finally {
-                    synchronized (this) {
-                        if (musicPlayer == player) {
-                            musicPlayer = null;
-                        }
-                    }
-                }
-            }
-        }, "MenuMusic");
-
-        musicThread.setDaemon(true);
-        musicThread.start();
-    }
-
-    private synchronized void stopMusicPlayback() {
-        musicGeneration.incrementAndGet();
-
-        Player player = musicPlayer;
-        musicPlayer = null;
-
-        if (player != null) {
-            player.close();
-        }
-    }
-
-    private void playButtonSound() {
-        Thread soundThread = new Thread(() -> {
-            try {
-                URL soundUrl = getClass().getResource(
-                    "/resources/sounds/button-4-214382.mp3"
-                );
-
-                if (soundUrl == null) {
-                    System.err.println("Could not load button sound.");
-                    return;
-                }
-
-                try (InputStream input = soundUrl.openStream()) {
-                    Player player = new Player(input);
-                    player.play();
-                }
-            } catch (Exception e) {
-                System.err.println(
-                    "Could not play button sound: " + e.getMessage()
-                );
-            }
-        }, "ButtonSound");
-
-        soundThread.setDaemon(true);
-        soundThread.start();
-    }
-
-    public void stopMenu() {
-        setMenuVisible(false);
+    private void positionStartButton() {
+        int width = 300;
+        int height = 180;
+        startButton.setBounds((getWidth() - width) / 2,
+                getHeight() - height - 150, width, height);
     }
 
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-
         Graphics2D g2 = (Graphics2D) g.create();
-        g2.setRenderingHint(
-            RenderingHints.KEY_INTERPOLATION,
-            RenderingHints.VALUE_INTERPOLATION_BILINEAR
-        );
-
+        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+                RenderingHints.VALUE_INTERPOLATION_BILINEAR);
         if (backgroundImage != null) {
             g2.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
         }
-
         if (titleImage != null) {
-            int titleWidth = 1000;
-            int titleHeight = 500;
-            int titleX = (getWidth() - titleWidth) / 2;
-            int titleY = 50;
-
-            g2.drawImage(
-                titleImage,
-                titleX,
-                titleY,
-                titleWidth,
-                titleHeight,
-                this
-            );
+            int width = Math.min(1000, getWidth());
+            int height = Math.min(500, getHeight());
+            g2.drawImage(titleImage, (getWidth() - width) / 2, 50,
+                    width, height, this);
         }
-
         g2.dispose();
-    }
-
-    @Override
-    public void removeNotify() {
-        stopMenu();
-        super.removeNotify();
     }
 }
